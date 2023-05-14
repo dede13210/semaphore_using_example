@@ -2,81 +2,84 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <string.h>
+#include <ctype.h>
 #include <fcntl.h>
 
-/* Global variables */
-char* message = NULL;
-sem_t semDeposer, semRetirer;
+#define MAX_MESSAGE_LENGTH 100
 
-/* Producteur */
-/* Producteur */
-/* Producteur */
-void Produire()
-{
-    static int k = 0;
-    k++;
-    if (message != NULL) {
-        free(message);
-        message = NULL;
-    }
-    int size = snprintf(NULL, 0, "Message: %d", k);
-    message = malloc(size + 1);
-    sprintf(message, "Message: %d", k);
+char global_message[MAX_MESSAGE_LENGTH];
+sem_t* sprod;
+sem_t* scons;
+int k;
+
+//on écrit dans la variable en parametre un message
+void Produire(char* message) {
+    sprintf(message, "Message : %d", k++);
 }
 
-/* Consommateur */
-void Consommer()
-{
-    printf("Message reçu : %s\n", message);
-    // Mettre le message en majuscules (traitement)
-    for (int i = 0; message[i] != '\0'; i++) {
-        if (message[i] >= 'a' && message[i] <= 'z') {
-            message[i] = message[i] - 32; // Convertir en majuscules
-        }
+//on met le message en majuscule et on l'affiche
+void Consommer(char* message) {
+    for(int i = 0; message[i]; i++){
+        message[i] = toupper(message[i]);
     }
-    printf("Message traité : %s\n", message);
-    free(message);
-    message = NULL;
+    printf("%s\n", message);
 }
 
+//copie la variable en parametre dans la variable global
+void Deposer(char* message) {
+    strcpy(global_message, message);
+}
 
-/* Fonction du producteur */
-void* Producteur(void* arg)
-{
+//copie la variable en parametre dans la variable global
+void Retirer(char* message) {
+    strcpy(message, global_message);
+}
+//boucle infinie qui permet la synchronisation avec le consommateur
+void* Production(void* arg) {
     while (1) {
-        Produire();
-        sem_wait(&semRetirer); // Attendre que le consommateur retire le message précédent
-        sem_post(&semDeposer); // Indiquer au consommateur que le message est disponible
+        char message[MAX_MESSAGE_LENGTH];
+        Produire(message);
+        sem_wait(sprod);
+        Deposer(message);
+        sem_post(scons);
     }
-    pthread_exit(NULL);
+    return NULL;
 }
 
-/* Fonction du consommateur */
-void* Consommateur(void* arg)
-{
+//boucle infinie qui permet la synchronisation avec le consommateur
+void* Consommation(void* arg) {
     while (1) {
-        sem_wait(&semDeposer); // Attendre que le producteur dépose un message
-        Consommer();
-        sem_post(&semRetirer); // Indiquer au producteur que le message a été traité
+        char message[MAX_MESSAGE_LENGTH];
+        sem_wait(scons);
+        Retirer(message);
+        sem_post(sprod);
+        Consommer(message);
     }
-    pthread_exit(NULL);
+    return NULL;
 }
 
-int main()
-{
-    pthread_t threadProducteur, threadConsommateur;
+int main() {
+    //on intitialise k à 0
+    k=0;
+    //On initialise les threads
+    pthread_t prodThread, consThread;
 
-    sem_init(&semDeposer, 0, 0);
-    sem_init(&semRetirer, 0, 1);
+    //on intialise le premier semaphore à 1 et le deuxieme à 0 
+    sprod=sem_open("sprod",O_CREAT,0644,1);
+    scons=sem_open("scons",O_CREAT,0644,0);
 
-    pthread_create(&threadProducteur, NULL, Producteur, NULL);
-    pthread_create(&threadConsommateur, NULL, Consommateur, NULL);
+    //on creer nos deux thread avec les fonction Production et consommation respectivement
+    pthread_create(&prodThread, NULL, Production, NULL);
+    pthread_create(&consThread, NULL, Consommation, NULL);
 
-    pthread_join(threadProducteur, NULL);
-    pthread_join(threadConsommateur, NULL);
+    //on attend que les thread se termine
+    pthread_join(prodThread, NULL);
+    pthread_join(consThread, NULL);
 
-    sem_destroy(&semDeposer);
-    sem_destroy(&semRetirer);
+    //on detruit les semaphore
+    sem_destroy(sprod);
+    sem_destroy(scons);
 
     return 0;
 }
