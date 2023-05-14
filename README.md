@@ -2,5 +2,5 @@
 
 Dans ce TP nous allons utiliser des sémaphores pour implanter un modèle producteur/
 
-consommateur similaire à celui que vous avez vu en TD.
+consommateur similaire à celui que nous avons vu en TD.
 
