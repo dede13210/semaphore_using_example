@@ -1,6 +1,5 @@
-# Compte rendu tp3 système
+Semaphore :
+Le but de cet example est d'utiliser des sémaphores pour implanter un modèle producteur/
 
-Dans ce TP nous allons utiliser des sémaphores pour implanter un modèle producteur/
-
-consommateur similaire à celui que nous avons vu en TD.
+consommateur en C.
 
